@@ -1,6 +1,6 @@
 import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 # Включаем логирование
 logging.basicConfig(
@@ -17,44 +17,83 @@ ADMIN_ID = 879236410  # Твой ID для уведомлений
 
 # Стартовая команда
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привет! Я бот для предложки. Отправь сообщение, чтобы предложить его в канал.")
+    await update.message.reply_text(
+        "Привет! Я бот для предложки. Отправь сообщение или картинку, чтобы предложить его в канал. "
+        "Администратор подтвердит или отклонит ваш запрос."
+    )
 
-# Обработка предложений
+# Обработка предложений (текст и изображения)
 async def handle_proposal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
-    text = update.message.text
+    chat_id = update.message.chat_id
+    message_id = update.message.message_id
 
-    try:
-        # Уведомление админу
+    # Создаём inline-кнопки
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Подтвердить", callback_data=f"approve|{chat_id}|{message_id}"),
+            InlineKeyboardButton("🖕 Иди нахуй", callback_data=f"reject|{chat_id}|{message_id}"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Если сообщение содержит текст
+    if update.message.text:
+        text = update.message.text
+        # Отправка админу для подтверждения
         await context.bot.send_message(
             chat_id=ADMIN_ID,
             text=f"Новое предложение от @{user.username or 'анонимного пользователя'}:\n{text}",
+            reply_markup=reply_markup,
         )
-        logger.info("Уведомление админу отправлено")
-    except Exception as e:
-        logger.error(f"Ошибка при отправке уведомления админу: {e}")
-
-    try:
-        # Отправка сообщения в канал
-        await context.bot.send_message(
-            chat_id=CHANNEL_ID,
-            text=f"Предложение от @{user.username or 'анонимного пользователя'}:\n{text}",
+    # Если сообщение содержит фото
+    elif update.message.photo:
+        caption = update.message.caption or "Без подписи"
+        file_id = update.message.photo[-1].file_id  # Берём самое большое изображение
+        # Отправка изображения админу для подтверждения
+        await context.bot.send_photo(
+            chat_id=ADMIN_ID,
+            photo=file_id,
+            caption=f"Новое предложение от @{user.username or 'анонимного пользователя'}:\n{caption}",
+            reply_markup=reply_markup,
         )
-        await update.message.reply_text("Ваше предложение отправлено в канал.")
-        logger.info("Сообщение успешно отправлено в канал")
-    except Exception as e:
-        logger.error(f"Ошибка при отправке в канал: {e}")
-        await update.message.reply_text("Произошла ошибка при отправке сообщения в канал.")
 
-# Тестовая команда для уведомлений
-async def test_notify(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        await context.bot.send_message(chat_id=ADMIN_ID, text="Тестовое уведомление от бота!")
-        await update.message.reply_text("Тестовое уведомление отправлено.")
-        logger.info("Тестовое уведомление отправлено админу")
-    except Exception as e:
-        logger.error(f"Ошибка при отправке тестового уведомления: {e}")
-        await update.message.reply_text(f"Ошибка: {e}")
+    # Подтверждение отправителю
+    await update.message.reply_text("Ваше предложение отправлено на модерацию.")
+
+# Обработка нажатий на inline-кнопки
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Уведомление Telegram, что запрос обработан
+
+    # Парсим данные из callback_data
+    action, chat_id, message_id = query.data.split("|")
+
+    if action == "approve":
+        # Отправляем сообщение в канал
+        try:
+            # Перенаправляем текст или фото из исходного сообщения
+            original_message = await context.bot.forward_message(
+                chat_id=int(CHANNEL_ID),
+                from_chat_id=int(chat_id),
+                message_id=int(message_id),
+            )
+            await query.edit_message_text("Сообщение успешно опубликовано в канал.")
+            logger.info(f"Сообщение опубликовано: {original_message.message_id}")
+        except Exception as e:
+            logger.error(f"Ошибка при публикации: {e}")
+            await query.edit_message_text("Ошибка при публикации сообщения.")
+    elif action == "reject":
+        # Уведомление об отклонении
+        await query.edit_message_text("Сообщение отклонено: Иди нахуй.")
+        # Сообщаем пользователю, что его сообщение отклонено
+        try:
+            await context.bot.send_message(
+                chat_id=int(chat_id),
+                text="К сожалению, ваше предложение было отклонено администратором. Иди нахуй.",
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при отправке уведомления об отклонении: {e}")
 
 # Основная функция
 def main():
@@ -62,8 +101,8 @@ def main():
 
     # Обработчики
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("test", test_notify))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_proposal))
+    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_proposal))
+    application.add_handler(CallbackQueryHandler(button_handler))
 
     # Запуск бота
     logger.info("Бот запущен...")
