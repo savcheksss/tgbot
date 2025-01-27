@@ -8,6 +8,7 @@ from telegram.ext import (
     filters,
 )
 import asyncio
+from telegram.error import RetryAfter
 
 # Переменные окружения
 TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"  # Токен вашего бота
@@ -40,7 +41,7 @@ async def handle_proposal(update: Update, context):
             chat_id=ADMIN_ID,
             photo=photo.file_id,
             caption=f"Новое предложение от @{user.username or 'без имени'}:\n{text or 'Без текста'}",
-            reply_markup=InlineKeyboardMarkup([
+            reply_markup=InlineKeyboardMarkup([ 
                 [InlineKeyboardButton("✅ Принять", callback_data=f"accept:{photo.file_id}:{text or ''}")],
                 [InlineKeyboardButton("❌ Отклонить", callback_data="reject")],
             ]),
@@ -50,7 +51,7 @@ async def handle_proposal(update: Update, context):
         await context.bot.send_message(
             chat_id=ADMIN_ID,
             text=f"Новое предложение от @{user.username or 'без имени'}:\n{text}",
-            reply_markup=InlineKeyboardMarkup([
+            reply_markup=InlineKeyboardMarkup([ 
                 [InlineKeyboardButton("✅ Принять", callback_data=f"accept:::{text}")],
                 [InlineKeyboardButton("❌ Отклонить", callback_data="reject")],
             ]),
@@ -84,10 +85,18 @@ def create_app():
     app.add_handler(MessageHandler(filters.ALL, handle_proposal))
     app.add_handler(CallbackQueryHandler(handle_callback))
 
-    # Установка webhook
+    # Функция для установки webhook с обработкой ошибок
     async def set_webhook():
-        """Настройка webhook"""
-        await app.bot.set_webhook(WEBHOOK_URL)
+        """Настройка webhook с обработкой ошибок Flood control"""
+        try:
+            await app.bot.set_webhook(WEBHOOK_URL)
+            logger.info("Webhook успешно установлен.")
+        except RetryAfter as e:
+            logger.warning(f"Превышен лимит запросов, повторим через {e.retry_after} секунд.")
+            await asyncio.sleep(e.retry_after)  # Ожидание перед повтором
+            await set_webhook()  # Повторная попытка установки webhook
+        except Exception as e:
+            logger.error(f"Ошибка при установке webhook: {e}")
 
     # Асинхронно запускаем установку webhook
     asyncio.run(set_webhook())
