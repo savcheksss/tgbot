@@ -85,23 +85,32 @@ def create_app():
     app.add_handler(MessageHandler(filters.ALL, handle_proposal))
     app.add_handler(CallbackQueryHandler(handle_callback))
 
-    # Функция для установки webhook с обработкой ошибок
-    async def set_webhook():
-        """Настройка webhook с обработкой ошибок Flood control"""
-        try:
-            await app.bot.set_webhook(WEBHOOK_URL)
-            logger.info("Webhook успешно установлен.")
-        except RetryAfter as e:
-            logger.warning(f"Превышен лимит запросов, повторим через {e.retry_after} секунд.")
-            await asyncio.sleep(e.retry_after)  # Ожидание перед повтором
-            await set_webhook()  # Повторная попытка установки webhook
-        except Exception as e:
-            logger.error(f"Ошибка при установке webhook: {e}")
-
-    # Асинхронно запускаем установку webhook через create_task
-    asyncio.create_task(set_webhook())
-
     return app
 
-# Определяем переменную handler для Vercel
-handler = create_app()
+# Функция для установки webhook с обработкой ошибок
+async def set_webhook(app):
+    """Настройка webhook с обработкой ошибок Flood control"""
+    try:
+        await app.bot.set_webhook(WEBHOOK_URL)
+        logger.info("Webhook успешно установлен.")
+    except RetryAfter as e:
+        logger.warning(f"Превышен лимит запросов, повторим через {e.retry_after} секунд.")
+        await asyncio.sleep(e.retry_after)  # Ожидание перед повтором
+        await set_webhook(app)  # Повторная попытка установки webhook
+    except Exception as e:
+        logger.error(f"Ошибка при установке webhook: {e}")
+
+# Основная функция для запуска приложения
+def main():
+    """Запуск приложения и установка webhook"""
+    app = create_app()
+
+    # Создание и запуск event loop для установки webhook
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(set_webhook(app))  # Установка webhook
+
+    # Запуск бота
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
