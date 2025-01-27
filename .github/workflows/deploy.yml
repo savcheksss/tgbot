@@ -16,23 +16,21 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.10'  # Укажите версию Python, используемую для проекта
+          python-version: '3.10'  # Укажите версию Python
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt  # Устанавливает зависимости, если они есть
+          pip install -r requirements.txt  # Устанавливает зависимости
 
       - name: Set environment variables
         run: |
-          echo "TELEGRAM_TOKEN=7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk" >> $GITHUB_ENV
+          echo "TELEGRAM_TOKEN=7259551368:AAEpMtdGtEbOvuXhEry4TRGJqnz7-h5TYFk" >> $GITHUB_ENV
           echo "CHANNEL_ID=-1002401365916" >> $GITHUB_ENV
           echo "ADMIN_ID=879236410" >> $GITHUB_ENV
-          echo "WEBHOOK_URL=https://tgbot-rho-nine.vercel.app/webhook" >> $GITHUB_ENV
-
-      - name: Install Vercel CLI
-        run: |
-          npm install -g vercel  # Устанавливает Vercel CLI
+          echo "WEBHOOK_URL=https://tgbot-urib0f1bn-savcheksss-projects.vercel.app/webhook" >> $GITHUB_ENV
+          echo "VERCEL_TOKEN=your-vercel-token" >> $GITHUB_ENV  # Укажите ваш Vercel токен
 
       - name: Deploy to Vercel
         run: |
+          npm install -g vercel  # Устанавливает Vercel CLI
           vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes  # Развертывает приложение на Vercel
