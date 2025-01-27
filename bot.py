@@ -1,5 +1,5 @@
 import logging
-import asyncio  # Добавлен импорт asyncio
+import asyncio
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application,
@@ -12,7 +12,7 @@ from telegram.ext import (
 TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"
 CHANNEL_ID = -1002401365916
 ADMIN_ID = 879236410
-WEBHOOK_URL = "https://tgbot-c0ud.onrender.com/webhook"  # Убедитесь, что домен корректный и HTTPS
+WEBHOOK_URL = "https://tgbot-c0ud.onrender.com/webhook"  # Убедитесь, что это HTTPS-адрес
 
 # Настройка логирования
 logging.basicConfig(
