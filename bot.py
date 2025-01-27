@@ -7,12 +7,13 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters,
 )
+import asyncio
 
 # Переменные окружения
-TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"
-CHANNEL_ID = -1002401365916
-ADMIN_ID = 879236410
-WEBHOOK_URL = "https://tgbot-rho-nine.vercel.app/webhook"  # URL для вебхука
+TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"  # Токен вашего бота
+CHANNEL_ID = -1002401365916  # ID канала
+ADMIN_ID = 879236410  # ID администратора
+WEBHOOK_URL = "https://tgbot-rho-nine.vercel.app/webhook"  # URL для webhook
 
 # Настройка логирования
 logging.basicConfig(
@@ -23,14 +24,17 @@ logger = logging.getLogger(__name__)
 
 # Обработчик команды /start
 async def start(update: Update, context):
+    """Команда /start"""
     await update.message.reply_text("Привет! Я бот предложки.")
 
 # Обработчик предложений от пользователей
 async def handle_proposal(update: Update, context):
+    """Обработка предложений от пользователей"""
     user = update.effective_user
     text = update.message.text
 
     if update.message.photo:
+        # Если пришло фото
         photo = update.message.photo[-1]
         await context.bot.send_photo(
             chat_id=ADMIN_ID,
@@ -42,6 +46,7 @@ async def handle_proposal(update: Update, context):
             ]),
         )
     else:
+        # Если пришел текст
         await context.bot.send_message(
             chat_id=ADMIN_ID,
             text=f"Новое предложение от @{user.username or 'без имени'}:\n{text}",
@@ -51,12 +56,14 @@ async def handle_proposal(update: Update, context):
             ]),
         )
 
-# Обработчик кнопок "Принять" и "Отклонить"
+# Обработчик колбэков кнопок "Принять" и "Отклонить"
 async def handle_callback(update: Update, context):
+    """Обработка кнопок принятия или отклонения предложений"""
     query = update.callback_query
     data = query.data
 
     if data.startswith("accept"):
+        # Разбор данных из callback
         _, file_id, caption = data.split(":", maxsplit=2)
         if file_id:
             await context.bot.send_photo(chat_id=CHANNEL_ID, photo=file_id, caption=caption)
@@ -67,8 +74,9 @@ async def handle_callback(update: Update, context):
         await query.answer("Сообщение отклонено!")
     await query.message.delete()
 
-# Главная функция для запуска бота
+# Главная функция для создания приложения
 def create_app():
+    """Создание и настройка приложения Telegram Bot"""
     app = Application.builder().token(TOKEN).build()
 
     # Установка обработчиков
@@ -78,10 +86,10 @@ def create_app():
 
     # Установка webhook
     async def set_webhook():
+        """Настройка webhook"""
         await app.bot.set_webhook(WEBHOOK_URL)
 
-    # Асинхронный запуск webhook
-    import asyncio
+    # Асинхронно запускаем установку webhook
     asyncio.run(set_webhook())
 
     return app
