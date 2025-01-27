@@ -24,12 +24,15 @@ jobs:
 
       - name: Set environment variables
         run: |
-          echo "TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> $GITHUB_ENV
-          echo "CHANNEL_ID=${{ secrets.CHANNEL_ID }}" >> $GITHUB_ENV
-          echo "ADMIN_ID=${{ secrets.ADMIN_ID }}" >> $GITHUB_ENV
-          echo "WEBHOOK_URL=${{ secrets.WEBHOOK_URL }}" >> $GITHUB_ENV
+          echo "TELEGRAM_TOKEN=7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk" >> $GITHUB_ENV
+          echo "CHANNEL_ID=-1002401365916" >> $GITHUB_ENV
+          echo "ADMIN_ID=879236410" >> $GITHUB_ENV
+          echo "WEBHOOK_URL=https://tgbot-rho-nine.vercel.app/webhook" >> $GITHUB_ENV
+
+      - name: Install Vercel CLI
+        run: |
+          npm install -g vercel  # Устанавливает Vercel CLI
 
       - name: Deploy to Vercel
         run: |
-          npm install -g vercel  # Устанавливает Vercel CLI
           vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes  # Развертывает приложение на Vercel
