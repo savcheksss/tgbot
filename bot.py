@@ -97,5 +97,9 @@ async def set_webhook():
 
 if __name__ == "__main__":
     # Устанавливаем webhook и запускаем Flask
-    application.updater.start_polling()
-    app.run(debug=True)
+    # Замените следующую строку на вызов асинхронной функции
+    import asyncio
+    asyncio.run(set_webhook())
+    
+    # Запускаем Flask-приложение для обработки запросов
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
