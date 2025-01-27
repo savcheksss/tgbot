@@ -1,10 +1,13 @@
 import logging
-from flask import Flask, request
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
-import os
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters,
+)
 import asyncio
-from telegram.error import RetryAfter
 
 # Переменные окружения
 TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"  # Токен вашего бота
@@ -18,12 +21,6 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
-
-# Создание приложения Flask
-app = Flask(__name__)
-
-# Создание приложения Telegram
-application = Application.builder().token(TOKEN).build()
 
 # Обработчик команды /start
 async def start(update: Update, context):
@@ -43,7 +40,7 @@ async def handle_proposal(update: Update, context):
             chat_id=ADMIN_ID,
             photo=photo.file_id,
             caption=f"Новое предложение от @{user.username or 'без имени'}:\n{text or 'Без текста'}",
-            reply_markup=InlineKeyboardMarkup([ 
+            reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Принять", callback_data=f"accept:{photo.file_id}:{text or ''}")],
                 [InlineKeyboardButton("❌ Отклонить", callback_data="reject")],
             ]),
@@ -53,7 +50,7 @@ async def handle_proposal(update: Update, context):
         await context.bot.send_message(
             chat_id=ADMIN_ID,
             text=f"Новое предложение от @{user.username or 'без имени'}:\n{text}",
-            reply_markup=InlineKeyboardMarkup([ 
+            reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Принять", callback_data=f"accept:::{text}")],
                 [InlineKeyboardButton("❌ Отклонить", callback_data="reject")],
             ]),
@@ -77,32 +74,25 @@ async def handle_callback(update: Update, context):
         await query.answer("Сообщение отклонено!")
     await query.message.delete()
 
-# Функция для установки webhook с обработкой ошибок
-async def set_webhook():
-    """Настройка webhook с обработкой ошибок Flood control"""
-    try:
-        await application.bot.set_webhook(WEBHOOK_URL)
-        logger.info("Webhook успешно установлен.")
-    except RetryAfter as e:
-        logger.warning(f"Превышен лимит запросов, повторим через {e.retry_after} секунд.")
-        await asyncio.sleep(e.retry_after)  # Ожидание перед повтором
-        await set_webhook()  # Повторная попытка установки webhook
-    except Exception as e:
-        logger.error(f"Ошибка при установке webhook: {e}")
+# Главная функция для создания приложения
+def create_app():
+    """Создание и настройка приложения Telegram Bot"""
+    app = Application.builder().token(TOKEN).build()
 
-# Создание webhook маршрута в Flask
-@app.route('/webhook', methods=['POST'])
-async def webhook():
-    """Обработка запросов от Telegram через webhook"""
-    json_data = request.get_json()  # Получаем данные из POST-запроса
-    update = Update.de_json(json_data, application.bot)  # Декодируем обновление
-    await handle_proposal(update, application)  # Обрабатываем обновление
-    return "ok"  # Возвращаем ответ для завершения запроса
+    # Установка обработчиков
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.ALL, handle_proposal))
+    app.add_handler(CallbackQueryHandler(handle_callback))
 
-# Устанавливаем webhook при запуске
-async def on_start():
-    await set_webhook()
+    # Установка webhook
+    async def set_webhook():
+        """Настройка webhook"""
+        await app.bot.set_webhook(WEBHOOK_URL)
 
-if __name__ == '__main__':
-    asyncio.run(on_start())  # Запуск установки webhook
-    app.run(debug=True)
+    # Асинхронно запускаем установку webhook
+    asyncio.run(set_webhook())
+
+    return app
+
+# Определяем переменную handler для Vercel
+handler = create_app()
