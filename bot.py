@@ -112,5 +112,8 @@ def main():
     # Запуск бота
     app.run_polling()
 
+# Определяем переменную handler для Vercel
+app = create_app()
+
 if __name__ == "__main__":
     main()
