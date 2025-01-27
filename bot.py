@@ -98,8 +98,8 @@ def create_app():
         except Exception as e:
             logger.error(f"Ошибка при установке webhook: {e}")
 
-    # Асинхронно запускаем установку webhook
-    asyncio.run(set_webhook())
+    # Асинхронно запускаем установку webhook через create_task
+    asyncio.create_task(set_webhook())
 
     return app
 
