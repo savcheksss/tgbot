@@ -16,9 +16,9 @@
     }
   ],
   "env": {
-    "TELEGRAM_TOKEN": "@TELEGRAM_TOKEN",
-    "CHANNEL_ID": "@CHANNEL_ID",
-    "ADMIN_ID": "@ADMIN_ID",
-    "WEBHOOK_URL": "@WEBHOOK_URL"
+    "TELEGRAM_TOKEN": "7259551368:AAEpMtdGtEbOvuXhEry4TRGJqnz7-h5TYFk",
+    "CHANNEL_ID": "-1002401365916",
+    "ADMIN_ID": "879236410",
+    "WEBHOOK_URL": "https://tgbot-rho-nine.vercel.app/webhook"
   }
 }
