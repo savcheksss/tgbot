@@ -1,2 +1,4 @@
 aiogram==2.25.1
-asyncio
+Flask==2.2.5
+Werkzeug==2.2.3
+requests==2.28.2
