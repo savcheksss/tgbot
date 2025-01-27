@@ -1,4 +1,5 @@
 import logging
+import asyncio  # Добавлен импорт asyncio
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application,
