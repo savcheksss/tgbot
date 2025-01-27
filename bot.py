@@ -15,7 +15,7 @@ import asyncio
 TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"  # Токен вашего бота
 CHANNEL_ID = -1002401365916  # ID канала
 ADMIN_ID = 879236410  # ID администратора
-WEBHOOK_URL = "https://tgbot-rho-nine.vercel.app/webhook"  # URL для webhook
+WEBHOOK_URL = "https://tgbot-cmxucetxl-savcheksss-projects.vercel.app/webhook"  # URL для webhook
 
 # Настройка логирования
 logging.basicConfig(
