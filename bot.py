@@ -9,10 +9,13 @@ from telegram.ext import (
     filters,
 )
 
+# Токен бота
 TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"
 CHANNEL_ID = -1002401365916
 ADMIN_ID = 879236410
-WEBHOOK_URL = "https://tgbot-c0ud.onrender.com/webhook"  # Убедитесь, что это HTTPS-адрес
+
+# Новый URL вебхука
+WEBHOOK_URL = "https://tgbot-rho-nine.vercel.app/webhook"
 
 # Настройка логирования
 logging.basicConfig(
@@ -21,9 +24,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 async def start(update: Update, context):
     """Команда /start"""
     await update.message.reply_text("Привет! Я бот предложки.")
+
 
 async def handle_proposal(update: Update, context):
     """Обработка сообщений от пользователей (текст или фото)"""
@@ -53,6 +58,7 @@ async def handle_proposal(update: Update, context):
             ]),
         )
 
+
 async def handle_callback(update: Update, context):
     """Обработка кнопок принятия или отклонения предложений"""
     query = update.callback_query
@@ -68,6 +74,7 @@ async def handle_callback(update: Update, context):
     elif data == "reject":
         await query.answer("Сообщение отклонено!")
     await query.message.delete()
+
 
 def main():
     """Главная функция для запуска бота"""
@@ -90,6 +97,7 @@ def main():
         port=8443,
         url_path="webhook",
     ))
+
 
 if __name__ == "__main__":
     main()
