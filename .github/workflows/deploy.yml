@@ -1,16 +1,16 @@
-name: Deploy to Production
+name: Deploy Bot
 
 on:
   push:
     branches:
-      - main  # или ваша основная ветка
+      - main  # Этот процесс срабатывает на push в основную ветку
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Check out the code
       uses: actions/checkout@v2
 
     - name: Set up Python
@@ -21,9 +21,12 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install gunicorn
+        pip install -r requirements.txt  # Убедитесь, что у вас есть requirements.txt с зависимостями
 
-    - name: Deploy to server
+    - name: Deploy the app (Gunicorn + Nginx)
       run: |
-        gunicorn bot:app
+        sudo apt update
+        sudo apt install -y nginx
+        sudo apt install -y gunicorn
+        gunicorn --bind 127.0.0.1:8000 bot:app  # Запуск приложения через Gunicorn
+        sudo service nginx restart  # Перезапуск Nginx
