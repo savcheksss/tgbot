@@ -1,22 +1,16 @@
 import logging
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    filters,
-)
+from flask import Flask, request
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+import os
 import asyncio
 from telegram.error import RetryAfter
-from flask import Flask, request
-import os
 
 # Переменные окружения
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk")  # Токен вашего бота
-CHANNEL_ID = int(os.getenv("CHANNEL_ID", "-1002401365916"))  # ID канала
-ADMIN_ID = int(os.getenv("ADMIN_ID", "879236410"))  # ID администратора
-WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://tgbot-rho-nine.vercel.app/webhook")  # URL для webhook
+TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"  # Токен вашего бота
+CHANNEL_ID = -1002401365916  # ID канала
+ADMIN_ID = 879236410  # ID администратора
+WEBHOOK_URL = "https://tgbot-rho-nine.vercel.app/webhook"  # URL для webhook
 
 # Настройка логирования
 logging.basicConfig(
@@ -25,8 +19,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Flask приложение для webhook
+# Создание приложения Flask
 app = Flask(__name__)
+
+# Создание приложения Telegram
+application = Application.builder().token(TOKEN).build()
 
 # Обработчик команды /start
 async def start(update: Update, context):
@@ -84,7 +81,7 @@ async def handle_callback(update: Update, context):
 async def set_webhook():
     """Настройка webhook с обработкой ошибок Flood control"""
     try:
-        await app.bot.set_webhook(WEBHOOK_URL)
+        await application.bot.set_webhook(WEBHOOK_URL)
         logger.info("Webhook успешно установлен.")
     except RetryAfter as e:
         logger.warning(f"Превышен лимит запросов, повторим через {e.retry_after} секунд.")
@@ -93,34 +90,19 @@ async def set_webhook():
     except Exception as e:
         logger.error(f"Ошибка при установке webhook: {e}")
 
-# Главная функция для создания и настройки приложения Telegram Bot
-def create_app():
-    """Создание и настройка приложения Telegram Bot"""
-    app = Application.builder().token(TOKEN).build()
+# Создание webhook маршрута в Flask
+@app.route('/webhook', methods=['POST'])
+async def webhook():
+    """Обработка запросов от Telegram через webhook"""
+    json_data = request.get_json()  # Получаем данные из POST-запроса
+    update = Update.de_json(json_data, application.bot)  # Декодируем обновление
+    await handle_proposal(update, application)  # Обрабатываем обновление
+    return "ok"  # Возвращаем ответ для завершения запроса
 
-    # Установка обработчиков
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.ALL, handle_proposal))
-    app.add_handler(CallbackQueryHandler(handle_callback))
+# Устанавливаем webhook при запуске
+async def on_start():
+    await set_webhook()
 
-    # Асинхронно запускаем установку webhook
-    asyncio.run(set_webhook())
-
-    return app
-
-# Запуск Flask сервера для обработки webhook
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    """Обработка webhook запросов от Telegram"""
-    json_str = request.get_data().decode("UTF-8")
-    update = Update.de_json(json_str, app.bot)
-    app.update_queue.put(update)
-    return "OK", 200
-
-# Главная функция для старта бота
-if __name__ == "__main__":
-    # Настроим Flask сервер для обработки запросов от Telegram
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
-
-    # Создаем и запускаем бота
-    handler = create_app()
+if __name__ == '__main__':
+    asyncio.run(on_start())  # Запуск установки webhook
+    app.run(debug=True)
