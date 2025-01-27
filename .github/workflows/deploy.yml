@@ -1,24 +1,35 @@
-name: Deploy to Vercel
+name: Deploy Telegram Bot to Vercel
 
 on:
   push:
     branches:
-      - main
+      - main  # Развертывание будет происходить при пуше в основную ветку
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2  # Клонирует ваш репозиторий
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
         with:
-          node-version: '16'
+          python-version: '3.10'  # Укажите версию Python, используемую для проекта
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt  # Устанавливает зависимости, если они есть
+
+      - name: Set environment variables
+        run: |
+          echo "TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> $GITHUB_ENV
+          echo "CHANNEL_ID=${{ secrets.CHANNEL_ID }}" >> $GITHUB_ENV
+          echo "ADMIN_ID=${{ secrets.ADMIN_ID }}" >> $GITHUB_ENV
+          echo "WEBHOOK_URL=${{ secrets.WEBHOOK_URL }}" >> $GITHUB_ENV
 
       - name: Deploy to Vercel
-        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
+        run: |
+          npm install -g vercel  # Устанавливает Vercel CLI
+          vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes  # Развертывает приложение на Vercel
