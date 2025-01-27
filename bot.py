@@ -11,7 +11,7 @@ from telegram.ext import (
 TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"
 CHANNEL_ID = -1002401365916
 ADMIN_ID = 879236410
-WEBHOOK_URL = "https://tgbot-c0ud.onrender.com/webhook"  # Обновили на новый URL
+WEBHOOK_URL = "https://tgbot-c0ud.onrender.com/webhook"  # Убедитесь, что домен корректный и HTTPS
 
 # Настройка логирования
 logging.basicConfig(
@@ -21,9 +21,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 async def start(update: Update, context):
+    """Команда /start"""
     await update.message.reply_text("Привет! Я бот предложки.")
 
 async def handle_proposal(update: Update, context):
+    """Обработка сообщений от пользователей (текст или фото)"""
     user = update.effective_user
     text = update.message.text
 
@@ -36,49 +38,61 @@ async def handle_proposal(update: Update, context):
             caption=f"Новое предложение от @{user.username or 'без имени'}:\n{text or 'Без текста'}",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Принять", callback_data=f"accept:{photo.file_id}:{text or ''}")],
-                [InlineKeyboardButton("❌ Иди нахуй", callback_data="reject")],
+                [InlineKeyboardButton("❌ Отклонить", callback_data="reject")],
             ]),
         )
     else:
+        # Если пользователь отправил только текст
         await context.bot.send_message(
             chat_id=ADMIN_ID,
             text=f"Новое предложение от @{user.username or 'без имени'}:\n{text}",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Принять", callback_data=f"accept:::{text}")],
-                [InlineKeyboardButton("❌ Иди нахуй", callback_data="reject")],
+                [InlineKeyboardButton("❌ Отклонить", callback_data="reject")],
             ]),
         )
 
 async def handle_callback(update: Update, context):
+    """Обработка кнопок принятия или отклонения предложений"""
     query = update.callback_query
     data = query.data
 
     if data.startswith("accept"):
-        _, file_id, caption = data.split(":")
-        await context.bot.send_message(chat_id=CHANNEL_ID, text=caption)
+        _, file_id, caption = data.split(":", maxsplit=2)
+        if file_id:  # Если есть фото
+            await context.bot.send_photo(chat_id=CHANNEL_ID, photo=file_id, caption=caption)
+        else:  # Только текст
+            await context.bot.send_message(chat_id=CHANNEL_ID, text=caption)
         await query.answer("Сообщение опубликовано!")
     elif data == "reject":
         await query.answer("Сообщение отклонено!")
     await query.message.delete()
 
 def main():
+    """Главная функция для запуска бота"""
+    # Создание приложения Telegram
     app = Application.builder().token(TOKEN).build()
 
     # Установка webhook
-    app.bot.set_webhook(WEBHOOK_URL)
+    async def set_webhook():
+        await app.bot.set_webhook(WEBHOOK_URL)
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.ALL, handle_proposal))
     app.add_handler(CallbackQueryHandler(handle_callback))
 
-    logger.info("Бот запущен...")
-    
-    # Запуск приложения на Render с вебхуком
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=80,  # Используем стандартный HTTP порт
-        url_path="webhook",
-    )
+    # Запуск бота
+    async def run():
+        logger.info("Бот запущен...")
+        await set_webhook()
+        await app.run_webhook(
+            listen="0.0.0.0",
+            port=8443,
+            url_path="webhook",
+        )
+
+    import asyncio
+    asyncio.run(run())
 
 if __name__ == "__main__":
     main()
