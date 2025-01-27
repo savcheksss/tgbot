@@ -80,7 +80,9 @@ def create_app():
     async def set_webhook():
         await app.bot.set_webhook(WEBHOOK_URL)
 
-    app.loop.run_until_complete(set_webhook())
+    # Асинхронный запуск webhook
+    import asyncio
+    asyncio.run(set_webhook())
 
     return app
 
