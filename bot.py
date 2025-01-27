@@ -1,4 +1,5 @@
 import logging
+from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application,
@@ -7,8 +8,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters,
 )
-import asyncio
 from telegram.error import RetryAfter
+import asyncio
 
 # Переменные окружения
 TOKEN = "7849762948:AAHCcSOsTf-awCH2E99IJZFR0dW56AWulPk"  # Токен вашего бота
@@ -75,37 +76,46 @@ async def handle_callback(update: Update, context):
         await query.answer("Сообщение отклонено!")
     await query.message.delete()
 
-# Главная функция для создания приложения
-def create_app():
-    """Создание и настройка приложения Telegram Bot"""
-    app = Application.builder().token(TOKEN).build()
+# Функция для установки webhook с обработкой ошибок
+async def set_webhook(app):
+    """Настройка webhook с обработкой ошибок Flood control"""
+    try:
+        await app.bot.set_webhook(WEBHOOK_URL)
+        logger.info("Webhook успешно установлен.")
+    except RetryAfter as e:
+        logger.warning(f"Превышен лимит запросов, повторим через {e.retry_after} секунд.")
+        await asyncio.sleep(e.retry_after)  # Ожидание перед повтором
+        await set_webhook(app)  # Повторная попытка установки webhook
+    except Exception as e:
+        logger.error(f"Ошибка при установке webhook: {e}")
 
-    # Установка обработчиков
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.ALL, handle_proposal))
-    app.add_handler(CallbackQueryHandler(handle_callback))
+# Создание FastAPI приложения
+app = FastAPI()
 
-    # Функция для установки webhook с обработкой ошибок
-    async def set_webhook():
-        """Настройка webhook с обработкой ошибок Flood control"""
-        try:
-            await app.bot.set_webhook(WEBHOOK_URL)
-            logger.info("Webhook успешно установлен.")
-        except RetryAfter as e:
-            logger.warning(f"Превышен лимит запросов, повторим через {e.retry_after} секунд.")
-            await asyncio.sleep(e.retry_after)  # Ожидание перед повтором
-            await set_webhook()  # Повторная попытка установки webhook
-        except Exception as e:
-            logger.error(f"Ошибка при установке webhook: {e}")
+# Создаем Telegram-бота с помощью Application
+telegram_app = Application.builder().token(TOKEN).build()
 
-    # Асинхронно запускаем установку webhook через create_task
-    asyncio.create_task(set_webhook())
+# Устанавливаем обработчики
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(MessageHandler(filters.ALL, handle_proposal))
+telegram_app.add_handler(CallbackQueryHandler(handle_callback))
 
-    return app
+# Настроим webhook для Vercel
+@app.on_event("startup")
+async def on_startup():
+    """Настройка webhook при запуске FastAPI"""
+    await set_webhook(telegram_app)
 
-# Определяем переменную handler для Vercel
-handler = create_app()
+# Обработчик для webhook
+@app.post("/webhook")
+async def webhook(request: Request):
+    """Обработка запросов от Telegram Webhook"""
+    data = await request.json()
+    update = Update.de_json(data, telegram_app.bot)
+    await telegram_app.process_update(update)
+    return {"status": "ok"}
 
+# Если нужно, запустите сервер (для локальной разработки, на Vercel не требуется)
 if __name__ == "__main__":
-    # Запуск приложения
-    handler.run_polling()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
