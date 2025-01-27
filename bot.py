@@ -1,4 +1,6 @@
 import logging
+import asyncio
+from flask import Flask, request
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application,
@@ -7,7 +9,6 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters,
 )
-import asyncio
 from telegram.error import RetryAfter
 
 # Переменные окружения
@@ -23,12 +24,52 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Обработчик команды /start
+# Создаем Flask приложение
+app = Flask(__name__)
+
+# Главная функция для создания и настройки приложения Telegram Bot
+def create_app():
+    """Создание и настройка приложения Telegram Bot"""
+    loop = asyncio.get_event_loop()
+    app_telegram = Application.builder().token(TOKEN).build()
+
+    # Обработчики
+    app_telegram.add_handler(CommandHandler("start", start))
+    app_telegram.add_handler(MessageHandler(filters.ALL, handle_proposal))
+    app_telegram.add_handler(CallbackQueryHandler(handle_callback))
+
+    # Установка webhook
+    async def set_webhook():
+        """Настройка webhook с обработкой ошибок Flood control"""
+        try:
+            await app_telegram.bot.set_webhook(WEBHOOK_URL)
+            logger.info("Webhook успешно установлен.")
+        except RetryAfter as e:
+            logger.warning(f"Превышен лимит запросов, повторим через {e.retry_after} секунд.")
+            await asyncio.sleep(e.retry_after)  # Ожидание перед повтором
+            await set_webhook()  # Повторная попытка установки webhook
+        except Exception as e:
+            logger.error(f"Ошибка при установке webhook: {e}")
+
+    # Запуск установки webhook через цикл событий
+    loop.run_until_complete(set_webhook())
+
+    return app_telegram
+
+# Запуск Flask
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    """Обработка входящих сообщений через webhook"""
+    json_str = request.get_data(as_text=True)
+    update = app_telegram.bot._process_new_updates([json_str])
+    app_telegram.update_queue.put_nowait(update[0])
+    return "OK", 200
+
+# Обработчики команд
 async def start(update: Update, context):
     """Команда /start"""
     await update.message.reply_text("Привет! Я бот предложки.")
 
-# Обработчик предложений от пользователей
 async def handle_proposal(update: Update, context):
     """Обработка предложений от пользователей"""
     user = update.effective_user
@@ -57,7 +98,6 @@ async def handle_proposal(update: Update, context):
             ]),
         )
 
-# Обработчик колбэков кнопок "Принять" и "Отклонить"
 async def handle_callback(update: Update, context):
     """Обработка кнопок принятия или отклонения предложений"""
     query = update.callback_query
@@ -75,33 +115,7 @@ async def handle_callback(update: Update, context):
         await query.answer("Сообщение отклонено!")
     await query.message.delete()
 
-# Главная функция для создания приложения
-def create_app():
-    """Создание и настройка приложения Telegram Bot"""
-    app = Application.builder().token(TOKEN).build()
-
-    # Установка обработчиков
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.ALL, handle_proposal))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-
-    # Функция для установки webhook с обработкой ошибок
-    async def set_webhook():
-        """Настройка webhook с обработкой ошибок Flood control"""
-        try:
-            await app.bot.set_webhook(WEBHOOK_URL)
-            logger.info("Webhook успешно установлен.")
-        except RetryAfter as e:
-            logger.warning(f"Превышен лимит запросов, повторим через {e.retry_after} секунд.")
-            await asyncio.sleep(e.retry_after)  # Ожидание перед повтором
-            await set_webhook()  # Повторная попытка установки webhook
-        except Exception as e:
-            logger.error(f"Ошибка при установке webhook: {e}")
-
-    # Асинхронно запускаем установку webhook через create_task
-    asyncio.create_task(set_webhook())
-
-    return app
-
-# Определяем переменную handler для Vercel
-handler = create_app()
+if __name__ == "__main__":
+    # Создание и запуск приложения
+    handler = create_app()
+    app.run(debug=True)
