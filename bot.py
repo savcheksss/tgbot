@@ -82,17 +82,13 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_callback))
 
     # Запуск бота
-    async def run():
-        logger.info("Бот запущен...")
-        await set_webhook()
-        await app.run_webhook(
-            listen="0.0.0.0",
-            port=8443,
-            url_path="webhook",
-        )
-
-    import asyncio
-    asyncio.run(run())
+    loop = asyncio.get_event_loop()
+    loop.create_task(set_webhook())
+    loop.create_task(app.run_webhook(
+        listen="0.0.0.0",
+        port=8443,
+        url_path="webhook",
+    ))
 
 if __name__ == "__main__":
     main()
